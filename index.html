@@ -1,0 +1,428 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Трекер задач</title>
+<meta name="theme-color" content="#2563eb">
+<meta name="description" content="Трекер задач: проекты, задачи, статусы, статистика. Работает офлайн.">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Задачи">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<style>
+:root{
+  --primary:#2563eb; --primary-dark:#1d4ed8; --primary-soft:#dbeafe;
+  --bg:#f3f6fb; --card:#ffffff; --text:#0f172a; --muted:#64748b; --line:#e2e8f0;
+  --ok:#16a34a; --ok-soft:#dcfce7; --warn:#d97706; --warn-soft:#fef3c7;
+  --bad:#dc2626; --bad-soft:#fee2e2; --new:#475569; --new-soft:#e2e8f0;
+  --radius:16px; --nav-h:64px;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --primary:#3b82f6; --primary-dark:#60a5fa; --primary-soft:#1e3a8a;
+    --bg:#0b1220; --card:#131c2e; --text:#e6edf7; --muted:#94a3b8; --line:#243049;
+    --ok:#4ade80; --ok-soft:#14532d; --warn:#fbbf24; --warn-soft:#78350f;
+    --bad:#f87171; --bad-soft:#7f1d1d; --new:#cbd5e1; --new-soft:#334155;
+  }
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text);
+  font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+body{padding-bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 16px)}
+header{position:sticky;top:0;z-index:10;background:var(--primary);color:#fff;
+  padding:calc(env(safe-area-inset-top) + 12px) 16px 12px;display:flex;align-items:center;gap:12px}
+header h1{margin:0;font-size:1.15rem;font-weight:700;flex:1}
+header button{background:rgba(255,255,255,.18);color:#fff;border:0;border-radius:10px;
+  padding:8px 12px;font-size:.95rem;min-height:40px}
+#offline{display:none;background:var(--warn-soft);color:var(--warn);text-align:center;
+  padding:6px 12px;font-size:.9rem;font-weight:600}
+main{max-width:720px;margin:0 auto;padding:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;margin-bottom:12px}
+a.card{display:block;color:inherit;text-decoration:none}
+.row{display:flex;align-items:center;gap:8px}
+.between{justify-content:space-between}
+.wrap{flex-wrap:wrap}
+.muted{color:var(--muted);font-size:.9rem}
+h2{font-size:1.1rem;margin:0 0 10px}
+h3{font-size:1rem;margin:0 0 4px}
+.chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;margin-bottom:10px}
+.chip{border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:999px;
+  padding:8px 14px;font-size:.92rem;white-space:nowrap;min-height:40px}
+.chip.active{background:var(--primary);border-color:var(--primary);color:#fff;font-weight:600}
+.badge{display:inline-block;border-radius:999px;padding:2px 10px;font-size:.78rem;font-weight:700}
+.b-Новая{background:var(--new-soft);color:var(--new)}
+.b-В\ работе{background:var(--primary-soft);color:var(--primary-dark)}
+.b-Выполнена{background:var(--ok-soft);color:var(--ok)}
+.b-overdue{background:var(--bad-soft);color:var(--bad)}
+.p-Высокий{color:var(--bad)} .p-Средний{color:var(--warn)} .p-Низкий{color:var(--ok)}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block;flex:none}
+.task-title{font-weight:600}
+.task-title.done{text-decoration:line-through;color:var(--muted)}
+label{display:block;font-weight:600;margin:14px 0 6px;font-size:.92rem}
+input,select,textarea{width:100%;font:inherit;color:var(--text);background:var(--card);
+  border:1.5px solid var(--line);border-radius:12px;padding:12px;min-height:48px}
+textarea{min-height:96px;resize:vertical}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--primary);border-color:var(--primary)}
+.err{color:var(--bad);font-size:.85rem;margin-top:4px;display:none}
+.invalid{border-color:var(--bad)}
+.btn{border:0;border-radius:12px;padding:12px 18px;font:inherit;font-weight:600;min-height:48px;
+  background:var(--primary);color:#fff;cursor:pointer}
+.btn.sec{background:var(--primary-soft);color:var(--primary-dark)}
+.btn.ok{background:var(--ok);color:#fff}
+.btn.danger{background:var(--bad-soft);color:var(--bad)}
+.btn.block{width:100%}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+.actions .full{grid-column:1/-1}
+.kv{display:grid;grid-template-columns:120px 1fr;gap:8px 12px;margin-top:12px}
+.kv div:nth-child(odd){color:var(--muted);font-size:.9rem}
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:12px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px}
+.stat b{display:block;font-size:1.7rem;line-height:1.1}
+.stat.bad b{color:var(--bad)} .stat.ok b{color:var(--ok)} .stat.pr b{color:var(--primary)}
+.bar{height:8px;border-radius:99px;background:var(--line);overflow:hidden;margin-top:8px}
+.bar i{display:block;height:100%;background:var(--ok)}
+.empty{text-align:center;color:var(--muted);padding:32px 12px}
+nav{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--card);border-top:1px solid var(--line);
+  display:flex;padding-bottom:env(safe-area-inset-bottom)}
+nav a{flex:1;height:var(--nav-h);display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:2px;color:var(--muted);text-decoration:none;font-size:.78rem;font-weight:600}
+nav a svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+nav a.active{color:var(--primary)}
+#toast{position:fixed;left:50%;bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 14px);transform:translateX(-50%) translateY(20px);
+  background:#0f172a;color:#fff;padding:12px 16px;border-radius:12px;max-width:90vw;opacity:0;
+  transition:.25s;z-index:50;font-size:.92rem;pointer-events:none;text-align:center}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.log{font-size:.85rem;border-top:1px dashed var(--line);padding:8px 0}
+.log:first-child{border-top:0}
+.back{background:none;border:0;color:var(--primary);font:inherit;font-weight:600;padding:8px 0;margin-bottom:6px}
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title">Трекер задач</h1>
+  <button id="installBtn" hidden>Установить</button>
+</header>
+<div id="offline">Нет соединения: приложение работает офлайн, данные сохраняются на устройстве</div>
+<main id="app"></main>
+<nav aria-label="Основная навигация">
+  <a href="#/tasks" data-nav="tasks"><svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/></svg>Задачи</a>
+  <a href="#/new" data-nav="new"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>Добавить</a>
+  <a href="#/projects" data-nav="projects"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Проекты</a>
+  <a href="#/stats" data-nav="stats"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/></svg>Статистика</a>
+</nav>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+"use strict";
+/* ============ Константы ============ */
+const STATUSES = ["Новая", "В работе", "Выполнена"];
+const PRIORITIES = ["Низкий", "Средний", "Высокий"];
+const KEY = "taskpwa.v1";
+
+/* ============ Дата ============ */
+const pad = n => String(n).padStart(2, "0");
+const iso = d => d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+const today = () => iso(new Date());
+const addDays = n => { const d = new Date(); d.setDate(d.getDate() + n); return iso(d); };
+const fmt = s => { if (!s) return "—"; const [y, m, d] = s.split("-"); return d + "." + m + "." + y; };
+
+/* ============ Данные (таблицы Projects и Tasks, связь 1:N по projectId) ============ */
+function seed() {
+  const projects = [
+    { id: "p1", name: "Сайт компании", color: "#2563eb", description: "Редизайн корпоративного сайта" },
+    { id: "p2", name: "Мобильное приложение", color: "#16a34a", description: "PWA для клиентов" },
+    { id: "p3", name: "Учебная практика", color: "#d97706", description: "Лабораторные и отчёты" }
+  ];
+  const T = (id, title, description, status, priority, due, assignee, projectId, completedAt) =>
+    ({ id, title, description, status, priority, due, assignee, projectId, completedAt: completedAt || "", createdAt: today() });
+  const tasks = [
+    T("t1", "Согласовать макет главной страницы", "Отправить макет заказчику и собрать правки", "В работе", "Высокий", addDays(-3), "Айдар", "p1"),
+    T("t2", "Подготовить тексты для раздела «О нас»", "Три абзаца и фото команды", "Новая", "Средний", addDays(2), "Алия", "p1"),
+    T("t3", "Настроить форму обратной связи", "Валидация и отправка на почту", "В работе", "Высокий", addDays(1), "Данияр", "p1"),
+    T("t4", "Проверить скорость загрузки", "Lighthouse, цель 90+ баллов", "Новая", "Низкий", addDays(7), "Сергей", "p1"),
+    T("t5", "Нарисовать иконку приложения", "Размеры 192 и 512 пикселей", "Выполнена", "Средний", addDays(-6), "Алия", "p2", addDays(-7)),
+    T("t6", "Настроить манифест", "name, short_name, цвета, иконки", "Выполнена", "Высокий", addDays(-4), "Данияр", "p2", addDays(-5)),
+    T("t7", "Написать Service Worker", "Офлайн-режим и кэширование", "В работе", "Высокий", addDays(3), "Данияр", "p2"),
+    T("t8", "Протестировать установку на Android", "Chrome, режим standalone", "Новая", "Средний", addDays(5), "Мария", "p2"),
+    T("t9", "Протестировать установку на iPhone", "Safari, «На экран Домой»", "Новая", "Низкий", addDays(-1), "Мария", "p2"),
+    T("t10", "Выбрать тему лабораторной", "Согласовать с преподавателем", "Выполнена", "Низкий", addDays(-10), "Айдар", "p3", addDays(-11)),
+    T("t11", "Составить схему таблиц", "Проекты и Задачи, связь один-ко-многим", "Выполнена", "Средний", addDays(-2), "Айдар", "p3", addDays(-3)),
+    T("t12", "Оформить отчёт", "Скриншоты, чек-лист, выводы", "В работе", "Средний", addDays(4), "Айдар", "p3")
+  ];
+  return { projects, tasks, log: [], seq: 100 };
+}
+let db = load();
+function load() {
+  try { const raw = localStorage.getItem(KEY); if (raw) return JSON.parse(raw); } catch (e) {}
+  const s = seed(); try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) {} return s;
+}
+function save() { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch (e) {} }
+const nid = p => p + (++db.seq);
+const projectOf = t => db.projects.find(p => p.id === t.projectId);
+const taskById = id => db.tasks.find(t => t.id === id);
+
+/* ============ Логика ============ */
+// Вычисляемое поле «Просрочена»
+const isOverdue = t => !!t.due && t.due < today() && t.status !== "Выполнена";
+// Условное отображение: кнопка «Завершить» только у невыполненных
+const canComplete = t => t.status !== "Выполнена";
+
+/* ============ Автоматизация ============ */
+function logAuto(text) {
+  db.log.unshift({ at: new Date().toLocaleString("ru-RU"), text });
+  db.log = db.log.slice(0, 30);
+}
+// Триггер 1: смена статуса на «Выполнена» → записать дату завершения
+function onStatusChange(t, oldStatus) {
+  if (oldStatus === t.status) return;
+  if (t.status === "Выполнена") {
+    t.completedAt = today();
+    logAuto("Задача «" + t.title + "» выполнена: записана дата завершения " + fmt(t.completedAt));
+  } else if (oldStatus === "Выполнена") {
+    t.completedAt = "";
+    logAuto("Задача «" + t.title + "» снова открыта: дата завершения очищена");
+  }
+}
+// Триггер 2: создана задача с высоким приоритетом → уведомление
+function onTaskCreated(t) {
+  if (t.priority !== "Высокий") return;
+  const msg = "Новая важная задача: «" + t.title + "» (срок " + fmt(t.due) + ")";
+  logAuto("Создана задача с высоким приоритетом, отправлено уведомление: " + t.title);
+  toast("🔔 " + msg);
+  if ("Notification" in window && Notification.permission === "granted") {
+    try {
+      if (navigator.serviceWorker && navigator.serviceWorker.ready) {
+        navigator.serviceWorker.ready.then(r => r.showNotification("Трекер задач", { body: msg, icon: "icons/icon-192.png", badge: "icons/icon-192.png" }));
+      } else { new Notification("Трекер задач", { body: msg }); }
+    } catch (e) {}
+  }
+}
+
+/* ============ Утилиты UI ============ */
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const $app = document.getElementById("app");
+let toastTimer;
+function toast(text) {
+  const el = document.getElementById("toast"); el.textContent = text; el.classList.add("show");
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove("show"), 3200);
+}
+function setTitle(t) { document.getElementById("title").textContent = t; document.title = t + " · Трекер задач"; }
+function badge(t) {
+  let h = '<span class="badge b-' + esc(t.status) + '">' + esc(t.status) + "</span>";
+  if (isOverdue(t)) h += ' <span class="badge b-overdue">Просрочена</span>';
+  return h;
+}
+function taskCard(t) {
+  const p = projectOf(t);
+  return '<a class="card" href="#/task/' + t.id + '">' +
+    '<div class="row between"><div class="task-title' + (t.status === "Выполнена" ? " done" : "") + '">' + esc(t.title) + "</div></div>" +
+    '<div class="row wrap" style="margin-top:6px">' + badge(t) +
+    '<span class="muted p-' + esc(t.priority) + '">● ' + esc(t.priority) + "</span></div>" +
+    '<div class="row between wrap muted" style="margin-top:6px"><span><i class="dot" style="background:' + esc(p ? p.color : "#999") + '"></i> ' + esc(p ? p.name : "—") + "</span>" +
+    "<span>Срок: " + fmt(t.due) + " · " + esc(t.assignee) + "</span></div></a>";
+}
+
+/* ============ Экраны ============ */
+let filter = "Все", projectFilter = "";
+
+function screenTasks() {
+  setTitle("Задачи");
+  const counts = { "Все": db.tasks.length };
+  STATUSES.forEach(s => counts[s] = db.tasks.filter(t => t.status === s).length);
+  counts["Просроченные"] = db.tasks.filter(isOverdue).length;
+  const chips = ["Все"].concat(STATUSES, ["Просроченные"]).map(f =>
+    '<button class="chip' + (filter === f ? " active" : "") + '" data-f="' + f + '">' + f + " · " + counts[f] + "</button>").join("");
+  let list = db.tasks.slice();
+  if (filter === "Просроченные") list = list.filter(isOverdue);
+  else if (filter !== "Все") list = list.filter(t => t.status === filter);
+  if (projectFilter) list = list.filter(t => t.projectId === projectFilter);
+  list.sort((a, b) => (a.status === "Выполнена") - (b.status === "Выполнена") || a.due.localeCompare(b.due));
+  const opts = '<option value="">Все проекты</option>' + db.projects.map(p => '<option value="' + p.id + '"' + (projectFilter === p.id ? " selected" : "") + ">" + esc(p.name) + "</option>").join("");
+  $app.innerHTML = '<div class="chips">' + chips + "</div>" +
+    '<select id="pf" aria-label="Фильтр по проекту" style="margin-bottom:12px">' + opts + "</select>" +
+    (list.length ? list.map(taskCard).join("") : '<div class="empty">Задач нет.<br>Измените фильтр или добавьте задачу.</div>');
+  $app.querySelectorAll("[data-f]").forEach(b => b.onclick = () => { filter = b.dataset.f; screenTasks(); });
+  document.getElementById("pf").onchange = e => { projectFilter = e.target.value; screenTasks(); };
+}
+
+function screenTask(id) {
+  const t = taskById(id);
+  if (!t) { $app.innerHTML = '<div class="empty">Задача не найдена</div>'; return; }
+  setTitle("Карточка задачи");
+  const p = projectOf(t);
+  $app.innerHTML = '<button class="back" onclick="history.back()">← Назад</button>' +
+    '<div class="card"><h2>' + esc(t.title) + "</h2><div>" + badge(t) + "</div>" +
+    (t.description ? '<p style="margin:12px 0 0">' + esc(t.description) + "</p>" : "") +
+    '<div class="kv"><div>Проект</div><div>' + esc(p ? p.name : "—") + "</div>" +
+    "<div>Приоритет</div><div class=\"p-" + esc(t.priority) + '">● ' + esc(t.priority) + "</div>" +
+    "<div>Срок</div><div>" + fmt(t.due) + "</div>" +
+    "<div>Исполнитель</div><div>" + esc(t.assignee) + "</div>" +
+    "<div>Создана</div><div>" + fmt(t.createdAt) + "</div>" +
+    (t.completedAt ? "<div>Завершена</div><div>" + fmt(t.completedAt) + "</div>" : "") + "</div>" +
+    '<div class="actions">' +
+    (t.status === "Новая" ? '<button class="btn sec" id="bStart">Взять в работу</button>' : "") +
+    (canComplete(t) ? '<button class="btn ok" id="bDone">Завершить</button>' : "") +
+    '<button class="btn sec" id="bEdit">Редактировать</button>' +
+    '<button class="btn danger" id="bDel">Удалить</button></div></div>';
+  const go = (st, msg) => { const old = t.status; t.status = st; onStatusChange(t, old); save(); toast(msg); screenTask(id); };
+  const bs = document.getElementById("bStart"); if (bs) bs.onclick = () => go("В работе", "Задача взята в работу");
+  const bd = document.getElementById("bDone"); if (bd) bd.onclick = () => go("Выполнена", "Задача завершена ✔");
+  document.getElementById("bEdit").onclick = () => location.hash = "#/edit/" + id;
+  document.getElementById("bDel").onclick = () => {
+    if (confirm("Удалить задачу «" + t.title + "»?")) { db.tasks = db.tasks.filter(x => x.id !== id); save(); toast("Задача удалена"); location.hash = "#/tasks"; }
+  };
+}
+
+function screenForm(id) {
+  const editing = !!id; const t = editing ? taskById(id) : null;
+  if (editing && !t) { $app.innerHTML = '<div class="empty">Задача не найдена</div>'; return; }
+  setTitle(editing ? "Редактирование" : "Новая задача");
+  const v = t || { title: "", description: "", status: "Новая", priority: "Средний", due: addDays(3), assignee: "", projectId: "" };
+  const sel = (arr, cur) => arr.map(x => "<option" + (x === cur ? " selected" : "") + ">" + esc(x) + "</option>").join("");
+  $app.innerHTML = '<form class="card" id="f" novalidate>' +
+    '<label for="title_">Название *</label><input id="title_" value="' + esc(v.title) + '" maxlength="80" placeholder="Например: Подготовить отчёт">' +
+    '<div class="err" id="e_title">Введите название (минимум 3 символа)</div>' +
+    '<label for="desc">Описание</label><textarea id="desc" maxlength="400">' + esc(v.description) + "</textarea>" +
+    '<label for="proj">Проект *</label><select id="proj"><option value="">Выберите проект</option>' +
+    db.projects.map(p => '<option value="' + p.id + '"' + (v.projectId === p.id ? " selected" : "") + ">" + esc(p.name) + "</option>").join("") + "</select>" +
+    '<div class="err" id="e_proj">Выберите проект</div>' +
+    '<label for="st">Статус</label><select id="st">' + sel(STATUSES, v.status) + "</select>" +
+    '<label for="pr">Приоритет</label><select id="pr">' + sel(PRIORITIES, v.priority) + "</select>" +
+    '<label for="due">Срок выполнения *</label><input id="due" type="date" value="' + esc(v.due) + '">' +
+    '<div class="err" id="e_due">Укажите срок выполнения</div>' +
+    '<label for="as">Исполнитель *</label><input id="as" value="' + esc(v.assignee) + '" maxlength="40" placeholder="Имя исполнителя">' +
+    '<div class="err" id="e_as">Укажите исполнителя</div>' +
+    '<div class="actions"><button type="button" class="btn sec" id="cancel">Отмена</button><button class="btn" type="submit">Сохранить</button></div></form>';
+  const g = x => document.getElementById(x);
+  const check = (inputId, errId, ok) => { g(inputId).classList.toggle("invalid", !ok); g(errId).style.display = ok ? "none" : "block"; return ok; };
+  g("cancel").onclick = () => history.back();
+  g("f").onsubmit = e => {
+    e.preventDefault();
+    // Проверка ввода (обязательные поля)
+    const ok = [
+      check("title_", "e_title", g("title_").value.trim().length >= 3),
+      check("proj", "e_proj", !!g("proj").value),
+      check("due", "e_due", !!g("due").value),
+      check("as", "e_as", g("as").value.trim().length > 0)
+    ].every(Boolean);
+    if (!ok) { toast("Заполните обязательные поля"); return; }
+    const data = { title: g("title_").value.trim(), description: g("desc").value.trim(), projectId: g("proj").value,
+      status: g("st").value, priority: g("pr").value, due: g("due").value, assignee: g("as").value.trim() };
+    if (editing) {
+      const old = t.status; Object.assign(t, data); onStatusChange(t, old); save(); toast("Изменения сохранены"); location.hash = "#/task/" + id;
+    } else {
+      const nt = Object.assign({ id: nid("t"), completedAt: "", createdAt: today() }, data);
+      if (nt.status === "Выполнена") nt.completedAt = today();
+      db.tasks.push(nt); onTaskCreated(nt); save();
+      if (nt.priority !== "Высокий") toast("Задача добавлена");
+      location.hash = "#/task/" + nt.id;
+    }
+  };
+}
+
+function screenProjects() {
+  setTitle("Проекты");
+  $app.innerHTML = '<div class="row between" style="margin-bottom:12px"><h2 style="margin:0">Все проекты</h2><a class="btn sec" style="text-decoration:none;display:inline-flex;align-items:center" href="#/project-new">+ Проект</a></div>' +
+    (db.projects.length ? db.projects.map(p => {
+      const ts = db.tasks.filter(t => t.projectId === p.id), done = ts.filter(t => t.status === "Выполнена").length;
+      const pct = ts.length ? Math.round(done / ts.length * 100) : 0, od = ts.filter(isOverdue).length;
+      return '<div class="card"><div class="row between"><div class="row"><i class="dot" style="background:' + esc(p.color) + '"></i><h3 style="margin:0">' + esc(p.name) + "</h3></div>" +
+        '<span class="muted">' + done + "/" + ts.length + "</span></div>" +
+        (p.description ? '<div class="muted" style="margin-top:4px">' + esc(p.description) + "</div>" : "") +
+        '<div class="bar"><i style="width:' + pct + '%"></i></div>' +
+        '<div class="row between wrap muted" style="margin-top:8px"><span>Выполнено: ' + pct + "%" + (od ? ' · <b style="color:var(--bad)">просрочено: ' + od + "</b>" : "") + "</span>" +
+        '<span><a href="#/tasks" data-pf="' + p.id + '" style="color:var(--primary);font-weight:600">Задачи</a> · <a href="#" data-del="' + p.id + '" style="color:var(--bad);font-weight:600">Удалить</a></span></div></div>';
+    }).join("") : '<div class="empty">Проектов нет</div>');
+  $app.querySelectorAll("[data-pf]").forEach(a => a.onclick = () => { projectFilter = a.dataset.pf; filter = "Все"; });
+  $app.querySelectorAll("[data-del]").forEach(a => a.onclick = e => {
+    e.preventDefault(); const id = a.dataset.del, n = db.tasks.filter(t => t.projectId === id).length;
+    if (n) { toast("Нельзя удалить: в проекте есть задачи (" + n + ")"); return; }
+    if (confirm("Удалить проект?")) { db.projects = db.projects.filter(p => p.id !== id); save(); screenProjects(); }
+  });
+}
+
+function screenProjectNew() {
+  setTitle("Новый проект");
+  const colors = ["#2563eb", "#16a34a", "#d97706", "#dc2626", "#7c3aed", "#0891b2"];
+  $app.innerHTML = '<form class="card" id="pf2" novalidate><label for="pn">Название проекта *</label><input id="pn" maxlength="50">' +
+    '<div class="err" id="e_pn">Введите название (минимум 2 символа)</div>' +
+    '<label for="pd">Описание</label><input id="pd" maxlength="100">' +
+    '<label for="pc">Цвет</label><select id="pc">' + colors.map((c, i) => '<option value="' + c + '">Цвет ' + (i + 1) + "</option>").join("") + "</select>" +
+    '<div class="actions"><button type="button" class="btn sec" id="c2">Отмена</button><button class="btn" type="submit">Создать</button></div></form>';
+  document.getElementById("c2").onclick = () => history.back();
+  document.getElementById("pf2").onsubmit = e => {
+    e.preventDefault(); const n = document.getElementById("pn"), ok = n.value.trim().length >= 2;
+    n.classList.toggle("invalid", !ok); document.getElementById("e_pn").style.display = ok ? "none" : "block";
+    if (!ok) return;
+    db.projects.push({ id: nid("p"), name: n.value.trim(), description: document.getElementById("pd").value.trim(), color: document.getElementById("pc").value });
+    save(); toast("Проект создан"); location.hash = "#/projects";
+  };
+}
+
+function screenStats() {
+  setTitle("Статистика");
+  const total = db.tasks.length, by = s => db.tasks.filter(t => t.status === s).length, od = db.tasks.filter(isOverdue).length;
+  const done = by("Выполнена"), pct = total ? Math.round(done / total * 100) : 0;
+  const notifState = !("Notification" in window) ? "не поддерживаются" : Notification.permission === "granted" ? "включены" : Notification.permission === "denied" ? "заблокированы" : "выключены";
+  $app.innerHTML = '<div class="stats">' +
+    '<div class="stat"><span class="muted">Всего задач</span><b>' + total + "</b></div>" +
+    '<div class="stat ok"><span class="muted">Выполнено</span><b>' + done + "</b></div>" +
+    '<div class="stat pr"><span class="muted">В работе</span><b>' + by("В работе") + "</b></div>" +
+    '<div class="stat bad"><span class="muted">Просрочено</span><b>' + od + "</b></div></div>" +
+    '<div class="card"><div class="row between"><h3 style="margin:0">Общий прогресс</h3><b>' + pct + '%</b></div><div class="bar"><i style="width:' + pct + '%"></i></div></div>' +
+    '<div class="card"><h3>По приоритету</h3>' + PRIORITIES.slice().reverse().map(p => {
+      const n = db.tasks.filter(t => t.priority === p && t.status !== "Выполнена").length;
+      return '<div class="row between"><span class="p-' + p + '">● ' + p + '</span><span class="muted">активных: ' + n + "</span></div>";
+    }).join("") + "</div>" +
+    '<div class="card"><h3>Уведомления</h3><div class="muted">Сейчас: ' + notifState + '</div>' +
+    '<button class="btn sec block" id="bn" style="margin-top:10px">Включить уведомления</button></div>' +
+    '<div class="card"><div class="row between"><h3 style="margin:0">Журнал автоматизации</h3><a href="#" id="clr" style="color:var(--primary)">Очистить</a></div>' +
+    (db.log.length ? db.log.map(l => '<div class="log"><span class="muted">' + esc(l.at) + "</span><br>" + esc(l.text) + "</div>").join("") : '<div class="muted" style="margin-top:8px">Пока пусто: завершите задачу или создайте задачу с высоким приоритетом.</div>') + "</div>" +
+    '<div class="card"><h3>Тестовые данные</h3><button class="btn danger block" id="rst">Сбросить к тестовым данным</button></div>';
+  document.getElementById("bn").onclick = () => {
+    if (!("Notification" in window)) { toast("Браузер не поддерживает уведомления"); return; }
+    Notification.requestPermission().then(() => screenStats());
+  };
+  document.getElementById("clr").onclick = e => { e.preventDefault(); db.log = []; save(); screenStats(); };
+  document.getElementById("rst").onclick = () => { if (confirm("Все данные будут заменены тестовыми. Продолжить?")) { db = seed(); save(); toast("Данные сброшены"); screenStats(); } };
+}
+
+/* ============ Роутер ============ */
+function route() {
+  const h = location.hash || "#/tasks", [, name, arg] = h.split("/");
+  const navKey = { tasks: "tasks", task: "tasks", new: "new", edit: "tasks", projects: "projects", "project-new": "projects", stats: "stats" }[name] || "tasks";
+  document.querySelectorAll("nav a").forEach(a => a.classList.toggle("active", a.dataset.nav === navKey));
+  switch (name) {
+    case "task": screenTask(arg); break;
+    case "new": screenForm(null); break;
+    case "edit": screenForm(arg); break;
+    case "projects": screenProjects(); break;
+    case "project-new": screenProjectNew(); break;
+    case "stats": screenStats(); break;
+    default: screenTasks();
+  }
+  window.scrollTo(0, 0);
+}
+window.addEventListener("hashchange", route);
+route();
+
+/* ============ PWA: офлайн-индикатор, установка, Service Worker ============ */
+const off = document.getElementById("offline");
+const syncOnline = () => off.style.display = navigator.onLine ? "none" : "block";
+window.addEventListener("online", syncOnline); window.addEventListener("offline", syncOnline); syncOnline();
+
+let deferredPrompt; const ib = document.getElementById("installBtn");
+window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); deferredPrompt = e; ib.hidden = false; });
+ib.onclick = async () => { if (!deferredPrompt) return; deferredPrompt.prompt(); await deferredPrompt.userChoice; deferredPrompt = null; ib.hidden = true; };
+window.addEventListener("appinstalled", () => { ib.hidden = true; toast("Приложение установлено"); });
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(err => console.warn("SW:", err)));
+}
+</script>
+</body>
+</html>
